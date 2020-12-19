@@ -58,7 +58,7 @@ rule settleVault(address owner, uint256 vaultId, uint256 index, address oToken, 
     require isValidVault(owner, vaultId); 
     require getVaultShortOtoken(owner, vaultId, index) == oToken;
     require getVaultCollateralAsset(owner, vaultId, index) == collateral;
-    uint256 collateralVaultBefore = getProceed(owner, vaultId);
+    // uint256 collateralVaultBefore = getProceed(owner, vaultId);
     // uint256 supplyBefore = shortOtoken.totalSupply();
     // uint256 collateralBalanceBefore = collateralToken.balanceOf(pool);
 
@@ -89,12 +89,106 @@ rule collateralWithdrawsRestricted(address owner, uint256 vaultId, uint256 index
                                                             || (f.selector == withdrawCollateral(address,uint256,address,uint256,uint256).selector);
 }
 
-rule optionWithdrawsRestricted(address owner, uint256 vaultId, uint256 index, method f) {
+rule optionWithdrawsRestricted(address owner, uint256 vaultId, uint256 index, address from, address amount, method f) {
     env e;
-    uint256 otokenBalanceBefore = shortOtoken.balanceOf(pool);
-    calldataarg arg;
-    sinvoke f(e, arg);
-    uint256 otokenBalanceAfter = shortOtoken.balanceOf(pool);
-
-    assert otokenBalanceAfter < otokenBalanceBefore => (f.selector == withdrawLongA(address, uint256, address, uint256, uint256).selector);
+    // The pool cannot really call any of these functions
+    require (e.msg.sender != pool);
+    require (!whitelist.isWhitelistedCollateral(longOtoken));
+    uint256 otokenBalanceBefore = longOtoken.balanceOf(pool);
+    if (f.selector == burnOtokenB(address,uint256,address,uint256,uint256).selector) {
+        require(owner != pool);
+        sinvoke burnOtokenB(e, owner, vaultId, from, index, amount);
+    } else {
+        calldataarg arg;
+        sinvoke f(e, arg);
+    }
+    uint256 otokenBalanceAfter = longOtoken.balanceOf(pool);
+    // or settle vault 
+    assert otokenBalanceAfter < otokenBalanceBefore => (f.selector == withdrawLongB(address, uint256, address, uint256, uint256).selector) 
+                                                    || (f.selector == settleVault(address,uint256,address).selector);
 }
+
+rule orderOfOperations (address owner, uint256 vaultId, method f1, method f2) { 
+    require(isValidVault(owner, vaultId));
+
+    require (f1.selector == withdrawLongB(address, uint256, address, uint256, uint256)
+            || f1.selector == withdrawLongA(address, uint256, address, uint256, uint256)
+            || f1.selector == depositLongA(address, uint256, address, uint256, uint256)
+            || f1.selector == depositLongB(address, uint256, address, uint256, uint256))
+
+    storage initialStorage = lastStorage;
+    env e1; 
+    calldataarg arg1;
+    sinvoke f1(e1, arg1);
+    env e2;
+    calldataarg arg2;
+    sinvoke f2(e2, arg2);
+
+    // if (f.selector == withdrawCollateral(address,uint256,address,uint256,uint256).selector) {
+    //     withdrawCollateral(e, owner, vaultId, to, index, amount);
+    // }
+    // else if (f.selector == withdrawLongB(address,uint256,address,uint256,uint256).selector) {
+    //     withdrawLongB(e, owner, vaultId, to, index, amount);
+    // }
+    // else if (f.selector == withdrawLongA(address,uint256,address,uint256,uint256).selector) {
+    //     withdrawLongA(e, owner, vaultId, to, index, amount);
+    // }
+    
+    // else if (f.selector == burnOtokenA(address,uint256,address,uint256,uint256).selector) {
+    //     burnOtokenA(e, owner, vaultId, from, index, amount);
+    // }
+    // else if (f.selector == burnOtokenB(address,uint256,address,uint256,uint256).selector) {
+    //     burnOtokenB(e, owner, vaultId, from, index, amount);
+    // }
+    // else if (f.selector == settleVault(address,uint256,address).selector) {
+    //     settleVault(e, owner, vaultId, to);
+    // } else if (f.selector == depositLongA(address,uint256,address,uint256,uint256).selector) {
+    //      depositLongA(e, owner, vaultId, from, index, amount);
+    // } else if (f.selector == depositLongB(address,uint256,address,uint256,uint256).selector) {
+    //      depositLongB(e, owner, vaultId, from, index, amount);
+    // } else if (f.selector == depositCollateral(address,uint256,address,uint256,uint256).selector) {
+    //      depositCollateral(e, owner, vaultId, from, index, amount);
+    // }
+    
+    uint256 vaultCollateralAmount1 = getVaultCollateralAmount(owner, vaultId,0);
+
+    sinvoke f2(e2, arg2) at initialStorage;
+    sinvoke f2(e1, arg1);
+
+    uint256 vaultCollateralAmount2 = getVaultCollateralAmount(owner, vaultId,0);
+
+    assert vaultCollateralAmount1 == vaultCollateralAmount2;
+    // run first method and then second method and store the result 
+    // run the second method then first method and compare result 
+}
+
+// rule inverse (address owner, uint256 vaultId, address from, uint256 index, uint256 amount) { 
+//     require(isValidVault(owner, vaultId));
+
+//     storage initialStorage = lastStorage;
+//     env e1; 
+//     calldataarg arg1;
+//     sinvoke f1(e1, arg1);
+//     env e2;
+//     calldataarg arg2;
+//     sinvoke f2(e2, arg2);
+
+//     function depositLongA(
+//     address owner,
+//     uint256 vaultId,
+//     address from,
+//     uint256 index,
+//     uint256 amount
+//   ) 
+    
+//     uint256 vaultCollateralAmount1 = getVaultCollateralAmount(owner, vaultId,0);
+
+//     sinvoke f2(e2, arg2) at initialStorage;
+//     sinvoke f2(e1, arg1);
+
+//     uint256 vaultCollateralAmount2 = getVaultCollateralAmount(owner, vaultId,0);
+
+//     assert vaultCollateralAmount1 == vaultCollateralAmount1;
+//     // run first method and then second method and store the result 
+//     // run the second method then first method and compare result 
+// }
