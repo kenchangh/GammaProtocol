@@ -76,7 +76,7 @@ rule validState(address owner, uint256 vaultId, uint256 index,  method f)
 
 
 /**
-@title Valid balance with respect to total collateral
+@title Valid balance with respect to total collateral before expiry
 @notice The sum of a collateral asset across vaults matches the assetBalance stored in the margin pool
         Vasset = { (v,i) v ∈ Vaults.  v.collateralAssets(i) = asset }
         getStoredBalance(asset) = ∑(v,i) ∈ Vasset. v.collateralAmounts[i]
@@ -84,7 +84,7 @@ rule validState(address owner, uint256 vaultId, uint256 index,  method f)
 This is proven by showing that change to a single vault is coherent with the change to the stored balance
 
 */
-rule validBalanceTotalCollateral(address owner, uint256 vaultId, uint256 index, address asset, method f)
+rule validBalanceTotalCollateral(address owner, uint256 vaultId, uint256 index, address asset, method f, address from, uint256 amount)
 description "$f breaks the validity of stored balance of collateral asset"
 {
     env e;
@@ -92,8 +92,11 @@ description "$f breaks the validity of stored balance of collateral asset"
     require getVaultCollateralAsset(owner, vaultId, index) == asset;
     require !isVaultExpired(e, owner, vaultId);
     uint256 collateralVaultBefore = getVaultCollateralAmount(owner, vaultId, index);
+    // todo: add pool.balance
     uint256 poolBalanceBefore = pool.getStoredBalance(asset);
-    if (f.selector == settleVault(address,uint256,address).selector) {
+    if (f.selector == settleVault(address,uint256,address).selector 
+        || f.selector == redeemB(address,uint256).selector
+        || f.selector == redeemA(address,uint256).selector) {
         assert true;
 	} else if (f.selector == withdrawCollateral(address,uint256,address,uint256,uint256).selector) {
 	    // have to require array lengths <= small const here
@@ -101,6 +104,10 @@ description "$f breaks the validity of stored balance of collateral asset"
 		address whoever;
 		uint256 whatever;
 		sinvoke withdrawCollateral(e, owner, vaultId, whoever, index, whatever);
+    } else if (f.selector == depositCollateral(address,uint256,address,uint256,uint256).selector) {
+        require (e.msg.sender != pool);
+        require (owner != pool);
+        sinvoke depositCollateral(e, owner, vaultId, from, index, amount);
     } else {
 		calldataarg arg;
         sinvoke f(e, arg);
@@ -108,6 +115,7 @@ description "$f breaks the validity of stored balance of collateral asset"
     uint256 collateralVaultAfter = getVaultCollateralAmount(owner, vaultId, index);
     uint256 poolBalanceAfter = pool.getStoredBalance(asset);
     assert collateralVaultBefore != collateralVaultAfter => (poolBalanceAfter - poolBalanceBefore ==  collateralVaultAfter - collateralVaultBefore);
+    assert poolBalanceBefore != poolBalanceAfter => (poolBalanceAfter - poolBalanceBefore ==  collateralVaultAfter - collateralVaultBefore);
 }
 
 
@@ -117,20 +125,27 @@ description "$f breaks the validity of stored balance of collateral asset"
         Vasset = { (v,i) v ∈ Vaults.  v.longOtokens(i) = oToken}
         getStoredBalance(oToken) = ∑(v,i) ∈ Vasset. v.longAmounts[i]
 */
-rule validBalanceTotalLong(address owner, uint256 vaultId, uint256 index, method f)
+rule validBalanceTotalLong(address owner, uint256 vaultId, uint256 index, method f, address from, uint256 amount, address asset)
 description "$f breaks the validity of stored balance of long asset"
 {
     env e;
-    require getVaultLongOtoken(owner, vaultId, index) == longOtoken;
+    require asset == longOtoken;
+    require getVaultLongOtoken(owner, vaultId, index) == asset;
     uint256 longVaultBefore = getVaultLongAmount(owner, vaultId, index);
     uint256 poolBalanceBefore = longOtoken.balanceOf(pool);
-    
-    calldataarg arg;
-    sinvoke f(e, arg);
+    if (f.selector == depositLongB(address,uint256,address,uint256,uint256).selector) {
+        require (e.msg.sender != pool);
+        require (owner != pool);
+        sinvoke depositLongB(e, owner, vaultId, from, index, amount);
+	} else {
+        calldataarg arg;
+        sinvoke f(e, arg);
+    }
     
     uint256 longVaultAfter = getVaultLongAmount(owner, vaultId, index);
     uint256 poolBalanceAfter = longOtoken.balanceOf(pool);
     assert longVaultBefore != longVaultAfter => ( poolBalanceAfter - poolBalanceBefore ==  longVaultAfter - longVaultBefore);
+    assert poolBalanceAfter != poolBalanceBefore => ( poolBalanceAfter - poolBalanceBefore ==  longVaultAfter - longVaultBefore);
 }
 
 
@@ -161,7 +176,7 @@ description "$f breaks the validity of stored balance of short asset"
     assert shortVaultBefore != shortVaultAfter => (supplyAfter - supplyBefore ==  shortVaultAfter - shortVaultBefore);
 }
 
-rule validBalanceTotalCollateralPostExpiry(address owner, uint256 vaultId, uint256 index, address oToken, address to, address collateral) {
+// rule validBalanceTotalCollateralPostExpiry(address owner, uint256 vaultId, uint256 index, address oToken, address to, address collateral) {
     // env e;
     // require oToken == shortOtoken;
     // require collateral == collateralToken;
@@ -184,7 +199,7 @@ rule validBalanceTotalCollateralPostExpiry(address owner, uint256 vaultId, uint2
     // 1. in a single tx only 1 vault can be modified 
     // 
 
-}
+// }
 
 rule cantSettleUnexpiredVault(address owner, uint256 vaultId)
 {
