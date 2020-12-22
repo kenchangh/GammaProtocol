@@ -1,5 +1,5 @@
 using DummyERC20C as collateralToken
-using MarginPool as pool
+using MarginPoolHarness as pool
 using Whitelist as whitelist
 using OtokenHarnessA as shortOtoken
 using OtokenHarnessB as longOtoken
@@ -48,37 +48,42 @@ methods {
 summaries {
     expiryTimestamp() => CONSTANT;
     burnOtoken(address, uint256) => CONSTANT;
-
 }
 
 rule settleVault(address owner, uint256 vaultId, uint256 index, address oToken, address to, address collateral) {
     env e;
     require oToken == shortOtoken;
     require collateral == collateralToken;
-    require isValidVault(owner, vaultId); 
-    require getVaultShortOtoken(owner, vaultId, index) == oToken;
-    require getVaultCollateralAsset(owner, vaultId, index) == collateral;
-    // uint256 collateralVaultBefore = getProceed(owner, vaultId);
+    //require isValidVault(owner, vaultId); 
+    require getVaultShortOtoken(owner, vaultId, 0) == oToken;
+    require getVaultCollateralAsset(owner, vaultId, 0) == collateral;
+    require to != pool; 
+    uint256 collateralVaultBefore = getProceed(owner, vaultId);
     // uint256 supplyBefore = shortOtoken.totalSupply();
-    // uint256 collateralBalanceBefore = collateralToken.balanceOf(pool);
+    uint256 collateralBalanceBefore = collateralToken.balanceOf(pool);
 
     sinvoke settleVault(e, owner, vaultId, to);
 
     // uint256 shortVaultAfter = getVaultShortAmount(owner, vaultId, index);
     // uint256 supplyAfter = shortOtoken.totalSupply();
-    // uint256 collateralBalanceAfter = collateralToken.balanceOf(pool);
-    uint256 collateralVaultAfter = getProceed(owner, vaultId);
+    uint256 collateralBalanceAfter = collateralToken.balanceOf(pool);
 
-    // assert shortVaultAfter == 0;
-    assert collateralVaultAfter == 0; 
+   /* cannot get the vault after it is deleted. Since there will be no paths the rule will be vacous (always verified)  
+    //uint256 collateralVaultAfter = getProceed(owner, vaultId);
+    //assert shortVaultAfter == 0;
+    //assert collateralVaultAfter == 0; 
+    */
     // assert supplyAfter == supplyBefore;
-    // assert collateralBalanceBefore - collateralBalanceAfter == collateralVaultBefore;
+    assert collateralBalanceBefore - collateralBalanceAfter == collateralVaultBefore;
 
     //	collateralAmt = v.collateralAmount[0]
 	// amountLeft = collateralAmt - getProceedVault(v). 
 // Sum collateral in vaults = collateral in pool - amountLeft 
 
 }
+
+
+
 
 rule collateralWithdrawsRestricted(address owner, uint256 vaultId, uint256 index, method f) {
     env e;
@@ -112,7 +117,7 @@ rule optionWithdrawsRestricted(address owner, uint256 vaultId, uint256 index, ad
                                                     || (f.selector == settleVault(address,uint256,address).selector);
 }
 
-rule orderOfOperations (address owner, uint256 vaultId) { 
+rule orderOfOperations (address owner, uint256 vaultId, method f1, method f2) { 
     require(isValidVault(owner, vaultId));
 
     // require (f1.selector == withdrawLongB(address, uint256, address, uint256, uint256).selector

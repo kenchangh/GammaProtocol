@@ -67,8 +67,10 @@ contract ControllerHarness is Controller {
   }
 
   function isValidVault(address owner, uint256 vaultId) external view returns (bool) {
-    MarginVault.Vault memory _vault = getVault(owner, vaultId);
-    (, bool isValidVault) = calculator.getExcessCollateral(_vault);
+    MarginVault.Vault storage _vault = cheapGetVault(owner, vaultId);
+    (, bool isValidVault) = calculator.getExcessCollateral(_vault.shortAmounts[0],
+        _vault.longAmounts[0],
+        _vault.collateralAmounts[0]);
     return isValidVault;
   }
 
@@ -335,16 +337,19 @@ contract ControllerHarness is Controller {
     address to
   ) external {
     MarginVault.Vault memory vault = getVault(owner, vaultId);
+    //MarginVault.Vault storage vault = cheapGetVault(owner, vaultId);
     bool hasShorts = _isNotEmpty(vault.shortOtokens);
     bool hasLongs = _isNotEmpty(vault.longOtokens);
     require(hasShorts || hasLongs, "Controller: Can't settle vault with no otoken");
 
     OtokenInterface otoken = hasShorts ? OtokenInterface(vault.shortOtokens[0]) : OtokenInterface(vault.longOtokens[0]);
 
-    require(now >= otoken.expiryTimestamp(), 'Controller: can not settle vault with un-expired otoken');
-    require(isSettlementAllowed(address(otoken)), 'Controller: asset prices not finalized yet');
+  //  require(now >= otoken.expiryTimestamp(), 'Controller: can not settle vault with un-expired otoken');
+  //  require(isSettlementAllowed(address(otoken)), 'Controller: asset prices not finalized yet');
 
-    (uint256 payout, ) = calculator.getExcessCollateral(vault);
+    (uint256 payout, ) = calculator.getExcessCollateral(vault.shortAmounts[0],
+        vault.longAmounts[0],
+        vault.collateralAmounts[0]);
 
     if (hasLongs) {
       OtokenInterface longOtoken = OtokenInterface(anOtokenB);
@@ -371,6 +376,23 @@ contract ControllerHarness is Controller {
 
   function isAuthorized(address _sender, address _accountOwner) external view returns (bool) {
     return (_sender == _accountOwner) || (operators[_accountOwner][_sender]);
+  }
+
+
+  function getProceed(address _owner, uint256 _vaultId) external view override returns (uint256) {
+        //MarginVault.Vault memory vault = getVault(_owner, _vaultId);
+        MarginVault.Vault storage vault = cheapGetVault(_owner, _vaultId);
+
+        (uint256 netValue, ) = calculator.getExcessCollateral(vault.shortAmounts[0],
+        vault.longAmounts[0],
+        vault.collateralAmounts[0]);
+        return netValue;
+  }
+
+
+
+  function isSettlementAllowed(address _otoken) public override view returns (bool) {
+        return true;
   }
 
   function init_state() public {}

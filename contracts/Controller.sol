@@ -378,7 +378,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _vaultId vaultId to return balances for
      * @return amount of collateral that can be taken out
      */
-    function getProceed(address _owner, uint256 _vaultId) external view returns (uint256) {
+    function getProceed(address _owner, uint256 _vaultId) external virtual view returns (uint256) {
         MarginVault.Vault memory vault = getVault(_owner, _vaultId);
 
         (uint256 netValue, ) = calculator.getExcessCollateral(vault);
@@ -401,7 +401,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _otoken address of the oToken
      * @return True if the oToken has expired AND all oracle prices at the expiry timestamp have been finalized, False if not
      */
-    function isSettlementAllowed(address _otoken) public view returns (bool) {
+    function isSettlementAllowed(address _otoken) public virtual view returns (bool) {
         OtokenInterface otoken = OtokenInterface(_otoken);
 
         address underlying = otoken.underlyingAsset();
