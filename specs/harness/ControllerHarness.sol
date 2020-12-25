@@ -62,7 +62,7 @@ contract ControllerHarness is Controller {
     return true;
   }
 
-  function cheapGetVault(address owner, uint256 vaultId) internal view returns (MarginVault.Vault storage) {
+  function cheapGetVault(address owner, uint256 vaultId) internal view override returns (MarginVault.Vault storage) {
     return vaults[owner][vaultId];
   }
 
@@ -256,6 +256,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require (smallVault(owner,vaultId,1));
     Actions.MintArgs memory args = Actions.MintArgs({
       owner: owner,
       vaultId: vaultId,
@@ -274,6 +275,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require (smallVault(owner,vaultId,1));
     Actions.MintArgs memory args = Actions.MintArgs({
       owner: owner,
       vaultId: vaultId,
@@ -292,6 +294,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require (smallVault(owner,vaultId,1));
     Actions.BurnArgs memory args = Actions.BurnArgs({
       owner: owner,
       vaultId: vaultId,
@@ -310,6 +313,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require (smallVault(owner,vaultId,1));
     Actions.BurnArgs memory args = Actions.BurnArgs({
       owner: owner,
       vaultId: vaultId,
@@ -360,6 +364,8 @@ contract ControllerHarness is Controller {
     delete vaults[owner][vaultId];
 
     pool.transferToUser(dummyERC20C, to, payout);
+
+    emit VaultSettled(owner, to, address(otoken), vaultId, payout);
   }
 
   // function call(address owner, address callee, uint256 vaultId, uint256 msgValue, bytes memory data)

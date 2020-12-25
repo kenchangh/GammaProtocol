@@ -629,11 +629,18 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         emit CollateralAssetDeposited(_args.asset, _args.owner, _args.from, _args.vaultId, _args.amount);
     }
 
+    function cheapGetVault(address owner, uint256 vaultId) internal view virtual returns (MarginVault.Vault storage) {
+        return vaults[owner][vaultId];
+    }
+
+
     /**
      * @notice withdraw a collateral asset from a vault
      * @dev only the account owner or operator can withdraw collateral, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args WithdrawArgs structure
      */
+
+
     function _withdrawCollateral(Actions.WithdrawArgs memory _args)
         internal
         notPartiallyPaused
@@ -641,7 +648,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     {
         require(_checkVaultId(_args.owner, _args.vaultId), "Controller: invalid vault id");
 
-        MarginVault.Vault memory vault = getVault(_args.owner, _args.vaultId);
+        MarginVault.Vault storage vault = cheapGetVault(_args.owner, _args.vaultId);
         if (_isNotEmpty(vault.shortOtokens)) {
             OtokenInterface otoken = OtokenInterface(vault.shortOtokens[0]);
 

@@ -26,4 +26,18 @@ contract MarginPoolHarness is MarginPool {
         emit TransferToUser(_asset, _user, _amount);
     }
 
+
+     function transferToPool(
+        address _asset,
+        address _user,
+        uint256 _amount
+    ) public virtual override onlyController {
+        require(_amount > 0, "MarginPool: transferToPool amount is equal to 0");
+        assetBalance[_asset] = assetBalance[_asset].add(_amount);
+
+        // transfer _asset _amount from _user to pool
+        ERC20Interface(_asset).transferFrom(_user, address(this), _amount);
+        emit TransferToPool(_asset, _user, _amount);
+    }
+
 }
