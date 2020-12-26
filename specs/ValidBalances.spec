@@ -133,13 +133,12 @@ description "$f breaks the validity of stored balance of long asset"
     require getVaultLongOtoken(owner, vaultId, index) == asset;
     uint256 longVaultBefore = getVaultLongAmount(owner, vaultId, index);
     uint256 poolBalanceBefore = longOtoken.balanceOf(pool);
+    require (owner != pool);
+    require (e.msg.sender != pool);
     if (f.selector == depositLongB(address,uint256,address,uint256,uint256).selector) {
-        require (e.msg.sender != pool);
-        require (owner != pool);
         sinvoke depositLongB(e, owner, vaultId, from, index, amount);
 	} else {
-        calldataarg arg;
-        sinvoke f(e, arg);
+        callFunctionWithParameters(f, owner, vaultId, index);
     }
     
     uint256 longVaultAfter = getVaultLongAmount(owner, vaultId, index);
@@ -164,15 +163,14 @@ description "$f breaks the validity of stored balance of short asset"
     require isVaultExpired(e, owner, vaultId);
     require getVaultShortOtoken(owner, vaultId, index) == oToken;
     uint256 shortVaultBefore = getVaultShortAmount(owner, vaultId, index);
-    uint256 supplyBefore = collateralToken.totalSupply();
+    uint256 supplyBefore = shortOtoken.totalSupply();
     if (f.selector == settleVault(address,uint256,address).selector) {
         assert true;
     } else {
-        calldataarg arg;
-        sinvoke f(e, arg);
+        callFunctionWithParameters(f, owner, vaultId, index);
     }
     uint256 shortVaultAfter = getVaultShortAmount(owner, vaultId, index);
-    uint256 supplyAfter = collateralToken.totalSupply();
+    uint256 supplyAfter = shortOtoken.totalSupply();
     assert shortVaultBefore != shortVaultAfter => (supplyAfter - supplyBefore ==  shortVaultAfter - shortVaultBefore);
 }
 
