@@ -125,7 +125,7 @@ description "$f breaks the validity of stored balance of collateral asset"
         Vasset = { (v,i) v ∈ Vaults.  v.longOtokens(i) = oToken}
         getStoredBalance(oToken) = ∑(v,i) ∈ Vasset. v.longAmounts[i]
 */
-rule validBalanceTotalLong(address owner, uint256 vaultId, uint256 index, method f, address from, uint256 amount, address asset)
+rule validBalanceTotalLong(address owner, uint256 vaultId, uint256 index, method f, address secondAddress, uint256 amount, address asset)
 description "$f breaks the validity of stored balance of long asset"
 {
     env e;
@@ -133,16 +133,23 @@ description "$f breaks the validity of stored balance of long asset"
     require getVaultLongOtoken(owner, vaultId, index) == asset;
     uint256 longVaultBefore = getVaultLongAmount(owner, vaultId, index);
     uint256 poolBalanceBefore = longOtoken.balanceOf(pool);
+    // the margin pool can neither be the owner nor the msg sender since it is a contract. 
     require (owner != pool);
     require (e.msg.sender != pool);
+
     if (f.selector == depositLongB(address,uint256,address,uint256,uint256).selector) {
-        sinvoke depositLongB(e, owner, vaultId, from, index, amount);
+        sinvoke depositLongB(e, owner, vaultId, secondAddress, index, amount);
+	} else if (f.selector == mintOtokenB(address,uint256,address,uint256,uint256).selector) {
+        // ignore the case where you can mint otokens directly to the margin pool
+        require (secondAddress != pool);
+        sinvoke mintOtokenB(e, owner, vaultId, secondAddress, index, amount);
 	} else {
         callFunctionWithParameters(f, owner, vaultId, index);
     }
     
     uint256 longVaultAfter = getVaultLongAmount(owner, vaultId, index);
     uint256 poolBalanceAfter = longOtoken.balanceOf(pool);
+
     assert longVaultBefore != longVaultAfter => ( poolBalanceAfter - poolBalanceBefore ==  longVaultAfter - longVaultBefore);
     assert poolBalanceAfter != poolBalanceBefore => ( poolBalanceAfter - poolBalanceBefore ==  longVaultAfter - longVaultBefore);
 }
@@ -160,7 +167,7 @@ description "$f breaks the validity of stored balance of short asset"
     env e;
     calldataarg arg;
     require oToken == shortOtoken;
-    require isVaultExpired(e, owner, vaultId);
+    require !isVaultExpired(e, owner, vaultId);
     require getVaultShortOtoken(owner, vaultId, index) == oToken;
     uint256 shortVaultBefore = getVaultShortAmount(owner, vaultId, index);
     uint256 supplyBefore = shortOtoken.totalSupply();
@@ -172,6 +179,7 @@ description "$f breaks the validity of stored balance of short asset"
     uint256 shortVaultAfter = getVaultShortAmount(owner, vaultId, index);
     uint256 supplyAfter = shortOtoken.totalSupply();
     assert shortVaultBefore != shortVaultAfter => (supplyAfter - supplyBefore ==  shortVaultAfter - shortVaultBefore);
+    assert supplyAfter != supplyBefore => ( supplyAfter - supplyBefore  ==  shortVaultAfter - shortVaultBefore);
 }
 
 // rule validBalanceTotalCollateralPostExpiry(address owner, uint256 vaultId, uint256 index, address oToken, address to, address collateral) {
