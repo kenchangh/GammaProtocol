@@ -109,8 +109,7 @@ description "$f breaks the validity of stored balance of collateral asset"
         require (owner != pool);
         sinvoke depositCollateral(e, owner, vaultId, from, index, amount);
     } else {
-		calldataarg arg;
-        sinvoke f(e, arg);
+		callFunctionWithParameters(f, owner, vaultId, index);
     }
     uint256 collateralVaultAfter = getVaultCollateralAmount(owner, vaultId, index);
     uint256 poolBalanceAfter = pool.getStoredBalance(asset);
