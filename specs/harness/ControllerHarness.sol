@@ -344,7 +344,7 @@ contract ControllerHarness is Controller {
 
     OtokenInterface otoken = hasShorts ? OtokenInterface(vault.shortOtokens[0]) : OtokenInterface(vault.longOtokens[0]);
 
-  //  require(now >= otoken.expiryTimestamp(), 'Controller: can not settle vault with un-expired otoken');
+    require(now >= otoken.expiryTimestamp(), 'Controller: can not settle vault with un-expired otoken');
   //  require(isSettlementAllowed(address(otoken)), 'Controller: asset prices not finalized yet');
 
     (uint256 payout, ) = calculator.getExcessCollateral(vault.shortAmounts[0],
