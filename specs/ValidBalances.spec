@@ -155,12 +155,12 @@ description "$f breaks the validity of stored balance of long asset"
 
 
 /**
-@title Valid supply of short oToken
+@title Valid supply of short oToken before expiry
 @notice The sum of a short asset across vaults matches the supply of that short oToken
         Vasset = { (v,i) v ∈ Vaults.  v.shortOtokens(i) = oToken}
         oToken.totalSupply() = ∑(v,i) ∈ Vasset. v.shortAmounts[i]
 */
-rule validBalanceTotalShort(address owner, uint256 vaultId, uint256 index, address oToken, method f)
+rule validBalanceTotalShort(address owner, uint256 vaultId, uint256 index, address secondAddress, address oToken, method f, uint256 amount)
 description "$f breaks the validity of stored balance of short asset"
 {
     env e;
@@ -170,9 +170,14 @@ description "$f breaks the validity of stored balance of short asset"
     require getVaultShortOtoken(owner, vaultId, index) == oToken;
     uint256 shortVaultBefore = getVaultShortAmount(owner, vaultId, index);
     uint256 supplyBefore = shortOtoken.totalSupply();
-    if (f.selector == settleVault(address,uint256,address).selector) {
+    // only test the cases before expiry
+    if (f.selector == settleVault(address,uint256,address).selector) ||  (f.selector == redeemA(address,uint256).selector) {
         assert true;
-    } else {
+    } else if (f.selector == mintOtokenA(address,uint256,address,uint256,uint256).selector) {
+        // ignore the case where you can mint otokens directly to the margin pool
+        require (secondAddress != pool);
+        sinvoke mintOtokenA(e, owner, vaultId, secondAddress, index, amount);
+	} else {
         callFunctionWithParameters(f, owner, vaultId, index);
     }
     uint256 shortVaultAfter = getVaultShortAmount(owner, vaultId, index);

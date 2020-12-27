@@ -50,36 +50,68 @@ summaries {
     burnOtoken(address, uint256) => CONSTANT;
 }
 
-rule settleVault(address owner, uint256 vaultId, uint256 index, address oToken, address to, address collateral) {
+rule settleVault (address owner, uint256 vaultId, uint256 index, address oToken, address to, address collateral) {
     env e;
     require oToken == shortOtoken;
     require collateral == collateralToken;
-    //require isValidVault(owner, vaultId); 
     require getVaultShortOtoken(owner, vaultId, 0) == oToken;
     require getVaultCollateralAsset(owner, vaultId, 0) == collateral;
     require to != pool; 
-    uint256 collateralVaultBefore = getProceed(owner, vaultId);
-    // uint256 supplyBefore = shortOtoken.totalSupply();
-    uint256 collateralBalanceBefore = collateralToken.balanceOf(pool);
+
+    uint256 supplyBefore = shortOtoken.totalSupply();
+    uint256 amountRemoved = getProceed(owner, vaultId);
+    uint256 poolBalanceBefore = collateralToken.balanceOf(pool);
 
     sinvoke settleVault(e, owner, vaultId, to);
 
-    // uint256 shortVaultAfter = getVaultShortAmount(owner, vaultId, index);
-    // uint256 supplyAfter = shortOtoken.totalSupply();
-    uint256 collateralBalanceAfter = collateralToken.balanceOf(pool);
+    uint256 supplyAfter = shortOtoken.totalSupply();
+    uint256 poolBalanceAfter = collateralToken.balanceOf(pool);
 
-   /* cannot get the vault after it is deleted. Since there will be no paths the rule will be vacous (always verified)  
-    //uint256 collateralVaultAfter = getProceed(owner, vaultId);
-    //assert shortVaultAfter == 0;
-    //assert collateralVaultAfter == 0; 
-    */
-    // assert supplyAfter == supplyBefore;
-    assert collateralBalanceBefore - collateralBalanceAfter == collateralVaultBefore;
+    assert supplyAfter == supplyBefore;
+    assert poolBalanceAfter != poolBalanceBefore => (poolBalanceBefore - poolBalanceAfter == amountRemoved);
 
-    //	collateralAmt = v.collateralAmount[0]
-	// amountLeft = collateralAmt - getProceedVault(v). 
-// Sum collateral in vaults = collateral in pool - amountLeft 
+}
 
+rule redeem (address oToken, address to, address collateral, uint256 amount) {
+    env e;
+    require oToken == shortOtoken;
+    require collateral == collateralToken;
+
+    require to != pool; 
+
+    uint256 supplyBefore = shortOtoken.totalSupply();
+    uint256 amountRemoved = getPayout(oToken, amount);
+    uint256 amount1 = getPayout(oToken, 1);
+    uint256 poolBalanceBefore = collateralToken.balanceOf(pool);
+
+    sinvoke redeemA(e, oToken, amount);
+
+    uint256 supplyAfter = shortOtoken.totalSupply();
+    uint256 poolBalanceAfter = collateralToken.balanceOf(pool);
+
+    assert supplyAfter != supplyBefore => ((supplyBefore - supplyAfter) * amount1 == amountRemoved);
+    assert poolBalanceAfter != poolBalanceBefore => (poolBalanceBefore - poolBalanceAfter == amountRemoved);
+
+}
+
+rule onlyOneVaultModified (address owner1, address owner2, uint256 vaultId1, uint256 vaultId2, address to) {
+    address collateral1Before = getVaultCollateralAsset(owner1, vaultId1, 0);
+    address collateral2Before = getVaultCollateralAsset(owner2, vaultId2, 0);
+    uint256 collateralAmt1Before = getVaultCollateralAmount(owner1, vaultId1, 0);
+    uint256 collateralAmt2Before = getVaultCollateralAmount(owner2, vaultId2, 0);
+    // address otokenShort1 = getVaultShortOtoken(owner1, vaultId1, 0);
+    // address otokenLong1 = getVaultLongOtoken(owner1, vaultId1, 0);
+    env e;
+    sinvoke settleVault(e, owner1, vaultId1, to);
+
+    address collateral1After = getVaultCollateralAsset(owner1, vaultId1, 0);
+    address collateral2After = getVaultCollateralAsset(owner2, vaultId2, 0);
+    uint256 collateralAmt1After = getVaultCollateralAmount(owner1, vaultId1, 0);
+    uint256 collateralAmt2After = getVaultCollateralAmount(owner2, vaultId2, 0);
+
+    assert collateralAmt2After != collateralAmt2Before => (collateralAmt2Before - collateralAmt2After == collateralAmt1Before - collateralAmt1After);
+    assert collateralAmt2After != collateralAmt2Before => (vaultId1 == vaultId2 && owner1 == owner2);
+    // assert collateral2After != collateral2Before => (vaultId1 == vaultId2 && owner1 == owner2);
 }
 
 
