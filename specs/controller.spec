@@ -94,6 +94,7 @@ rule redeem (address oToken, address to, address collateral, uint256 amount) {
 
 }
 
+/*
 rule onlyOneVaultModified (address owner1, address owner2, uint256 vaultId1, uint256 vaultId2, address to) {
     address collateral1Before = getVaultCollateralAsset(owner1, vaultId1, 0);
     address collateral2Before = getVaultCollateralAsset(owner2, vaultId2, 0);
@@ -112,10 +113,19 @@ rule onlyOneVaultModified (address owner1, address owner2, uint256 vaultId1, uin
     assert collateralAmt2After != collateralAmt2Before => (collateralAmt2Before - collateralAmt2After == collateralAmt1Before - collateralAmt1After);
     assert collateralAmt2After != collateralAmt2Before => (vaultId1 == vaultId2 && owner1 == owner2);
     // assert collateral2After != collateral2Before => (vaultId1 == vaultId2 && owner1 == owner2);
-}
+}*/
 
-
-
+rule onlyOneVaultModified (address owner1, address owner2, uint256 vaultId1, uint256 vaultId2, address to,  method f) {
+    require owner1 != owner2 || vaultId1 != vaultId2;
+    uint256 collateralAmt1Before = getVaultCollateralAmount(owner1, vaultId1, 0);
+    uint256 collateralAmt2Before = getVaultCollateralAmount(owner2, vaultId2, 0); 
+    env e;
+    calldataarg arg;
+    sinvoke f(e, arg);
+    uint256 collateralAmt1After = getVaultCollateralAmount(owner1, vaultId1, 0);
+    uint256 collateralAmt2After = getVaultCollateralAmount(owner2, vaultId2, 0);
+    assert (collateralAmt1Before != collateralAmt1After => collateralAmt2Before==collateralAmt2After);
+ }
 
 rule collateralWithdrawsRestricted(address owner, uint256 vaultId, uint256 index, method f) {
     env e;
