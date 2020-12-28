@@ -122,11 +122,20 @@ rule onlyOneVaultModified (address owner1, address owner2, uint256 vaultId1, uin
     env e;
     calldataarg arg;
     sinvoke f(e, arg);
-    uint256 collateralAmt1After = getVaultCollateralAmount(owner1, vaultId1, 0);
-    uint256 collateralAmt2After = getVaultCollateralAmount(owner2, vaultId2, 0);
-    assert (collateralAmt1Before != collateralAmt1After => collateralAmt2Before==collateralAmt2After);
+    uint256 collateralAmt1After = getVaultCollateralAmount@withrevert(owner1, vaultId1, 0);
+    bool r1 = lastReverted;
+    if (r1) {
+       collateralAmt1After = 0;
+    }
+    uint256 collateralAmt2After = getVaultCollateralAmount@withrevert(owner2, vaultId2, 0);
+    bool r2 = lastReverted;
+    if (r2) {
+       collateralAmt2After = 0;
+    }
+    assert !r1 || !r2, "at most one vault could have been deleted";
+    assert (collateralAmt1Before != collateralAmt1After => collateralAmt2Before==collateralAmt2After), "two vaults were updated";
  }
-
+ 
 rule collateralWithdrawsRestricted(address owner, uint256 vaultId, uint256 index, method f) {
     env e;
     uint256 collateralBalanceBefore = collateralToken.balanceOf(pool);
