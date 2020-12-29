@@ -67,8 +67,8 @@ rule validState(address owner, uint256 vaultId, uint256 index,  method f)
     ) ;
     callFunctionWithParameters(f, owner, vaultId, index);
     assert ( assetTotalSupply(shortOtoken) >= (pool.getStoredBalance(shortOtoken) + getVaultShortAmount(owner, vaultId, index)) &&
-      assetTotalSupply(longOtoken) >= pool.getStoredBalance(longOtoken) &&
-      pool.getStoredBalance(longOtoken) >= getVaultLongAmount(owner, vaultId, index) &&
+     // assetTotalSupply(longOtoken) >= pool.getStoredBalance(longOtoken) &&
+     // pool.getStoredBalance(longOtoken) >= getVaultLongAmount(owner, vaultId, index) &&
       pool.getStoredBalance(collateralToken) >= getVaultCollateralAmount(owner, vaultId, index) 
     );
 }
@@ -229,9 +229,11 @@ rule cantSettleUnexpiredVault(address owner, uint256 vaultId)
 */
 // XX Instantiated for collateral token
 /*isValidAsset(asset) => */
-invariant validBalanceOfTheSystem()
-         sinvoke pool.getStoredBalance(collateralToken) == sinvoke collateralToken.balanceOf(pool)
-
+rule validBalanceOfTheSystem(address owner, uint256 vaultId, uint256 index, method f) {
+    require pool.getStoredBalance(collateralToken) == sinvoke collateralToken.balanceOf(pool);
+    callFunctionWithParameters(f, owner, vaultId, index);
+    assert pool.getStoredBalance(collateralToken) == sinvoke collateralToken.balanceOf(pool);
+}
 
 rule onlyValidOtoken(address owner, uint256 vaultId, uint256 index, address otoken, method f) {
         require (otoken == shortOtoken || otoken == longOtoken );
@@ -253,7 +255,13 @@ function callFunctionWithParameters(method f, address owner, uint256 vaultId, ui
     address to;
     address from;
     address receiver;
-    if (f.selector == withdrawCollateral(address,uint256,address,uint256,uint256).selector) {
+    require to!=pool && to!=currentContract;
+    require from!=pool && from!=currentContract;
+    require e.msg.sender!=pool && e.msg.sender!=currentContract;
+    if (f.selector == depositCollateral(address,uint256,address,uint256,uint256).selector) {
+        depositCollateral(e, owner, vaultId, from, index, amount);
+    }
+    else if (f.selector == withdrawCollateral(address,uint256,address,uint256,uint256).selector) {
         withdrawCollateral(e, owner, vaultId, to, index, amount);
     }
     else if (f.selector == withdrawLongB(address,uint256,address,uint256,uint256).selector) {
@@ -262,7 +270,6 @@ function callFunctionWithParameters(method f, address owner, uint256 vaultId, ui
     else if (f.selector == withdrawLongA(address,uint256,address,uint256,uint256).selector) {
         withdrawLongA(e, owner, vaultId, to, index, amount);
     }
-    
     else if (f.selector == burnOtokenA(address,uint256,address,uint256,uint256).selector) {
         burnOtokenA(e, owner, vaultId, from, index, amount);
     }
@@ -271,6 +278,18 @@ function callFunctionWithParameters(method f, address owner, uint256 vaultId, ui
     }
     else if (f.selector == settleVault(address,uint256,address).selector) {
         settleVault(e, owner, vaultId, to);
+    }
+    else if (f.selector ==  depositLongA(address,uint256,address,uint256,uint256).selector) {
+         depositLongA(e, owner, vaultId, from, index ,amount);
+    }
+    else if (f.selector ==  depositLongB(address,uint256,address,uint256,uint256).selector) {
+         depositLongB(e, owner, vaultId, from, index ,amount);
+    }
+    else if (f.selector ==  redeemA(address,uint256).selector) {
+         redeemA(e, to, amount);
+    }
+    else if (f.selector ==  redeemB(address,uint256).selector) {
+         redeemB(e, to, amount);
     }
     else {
         calldataarg arg;
@@ -290,5 +309,6 @@ rule OtokenInVaultIsWhitelisted(address owner, uint256 vaultId, uint256 index, a
 invariant assetIsNotOtoken(address a)
     !(whitelist.isWhitelistedOtoken(a) && whitelist.isWhitelistedCollateral(a))
    
+
 
 

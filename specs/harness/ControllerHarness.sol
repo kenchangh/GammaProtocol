@@ -220,6 +220,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require( smallVault(owner,vaultId,1));
     Actions.DepositArgs memory args = Actions.DepositArgs({
       owner: owner,
       vaultId: vaultId,
@@ -238,6 +239,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require( smallVault(owner,vaultId,1));
     Actions.WithdrawArgs memory args = Actions.WithdrawArgs({
       owner: owner,
       vaultId: vaultId,
@@ -256,6 +258,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require( smallVault(owner,vaultId,1));
     Actions.MintArgs memory args = Actions.MintArgs({
       owner: owner,
       vaultId: vaultId,
@@ -274,6 +277,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require( smallVault(owner,vaultId,1));
     Actions.MintArgs memory args = Actions.MintArgs({
       owner: owner,
       vaultId: vaultId,
@@ -292,6 +296,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require( smallVault(owner,vaultId,1));
     Actions.BurnArgs memory args = Actions.BurnArgs({
       owner: owner,
       vaultId: vaultId,
@@ -310,6 +315,7 @@ contract ControllerHarness is Controller {
     uint256 index,
     uint256 amount
   ) external {
+    require( smallVault(owner,vaultId,1));
     Actions.BurnArgs memory args = Actions.BurnArgs({
       owner: owner,
       vaultId: vaultId,
@@ -336,6 +342,7 @@ contract ControllerHarness is Controller {
     uint256 vaultId,
     address to
   ) external {
+    require( smallVault(owner,vaultId,1));
     MarginVault.Vault memory vault = getVault(owner, vaultId);
     //MarginVault.Vault storage vault = cheapGetVault(owner, vaultId);
     bool hasShorts = _isNotEmpty(vault.shortOtokens);
@@ -352,9 +359,19 @@ contract ControllerHarness is Controller {
         vault.collateralAmounts[0]);
 
     if (hasLongs) {
-      OtokenInterface longOtoken = OtokenInterface(anOtokenB);
-
-      longOtoken.burnOtoken(address(pool), vault.longAmounts[0]);
+      if (vault.longOtokens[0] == anOtokenB) {
+        OtokenInterface longOtoken = OtokenInterface(anOtokenB);
+        longOtoken.burnOtoken(address(pool), vault.longAmounts[0]);
+      }
+      if (vault.longOtokens[0] == anOtokenA) {
+        OtokenInterface longOtoken = OtokenInterface(anOtokenA);
+        longOtoken.burnOtoken(address(pool), vault.longAmounts[0]);
+      }
+      else {
+        OtokenInterface longOtoken = OtokenInterface(vault.longOtokens[0]);
+        longOtoken.burnOtoken(address(pool), vault.longAmounts[0]);
+      }
+      
     }
 
     delete vaults[owner][vaultId];
